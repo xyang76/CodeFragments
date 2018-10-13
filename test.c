@@ -31,46 +31,29 @@ struct redircmd {
   int fd;            // the file descriptor number to use for the file
 };
 
-struct semicoloncmd {
-  int type;          // ;
-  struct cmd *left;  // left side of pipe
-  struct cmd *right; // right side of pipe
-};
-
-int fork1(void);  // Fork but exits on failure.
-struct cmd *parsecmd(char*);
-
-// Execute cmd.  Never returns.
-void
-runcmd(struct cmd *cmd)
+struct semicoloncmd {                            struct parenthesescmd {
+  int type;                                         int type;    
+  struct cmd *left;                                 struct cmd *right;  
+  struct cmd *right;                                struct cmd *left; 
+};                                               };
+void runcmd(struct cmd *cmd)
 {
-  int p[2], r;
-  struct execcmd *ecmd;
-  struct semicoloncmd *scmd;
-  struct redircmd *rcmd;
-
-  if(cmd == 0)
-    _exit(0);
-  
-  switch(cmd->type){
-  default:
-    fprintf(stderr, "unknown runcmd\n");
-    _exit(-1);
-
+  ...
   case ' ':
     ecmd = (struct execcmd*)cmd;
-    if(ecmd->argv[0] == 0)
-      _exit(0);
- 	execvp(ecmd->argv[0], ecmd->argv);
+    if(ecmd->argv[0] == 0) _exit(0);
+    if(fork() == 0)
+        execvp(ecmd->argv[0], ecmd->argv);
     break;
   case ';':
     scmd = (struct semicoloncmd*)cmd;
-    if(fork() == 0) {
-        runcmd(scmd->left);
-    wait(NULL);
+    runcmd(scmd->left);
     runcmd(scmd->right);
     break;
-  case '(':
+  case '(':             // The algorithm here cut a command as "pcmd.left(pcmd.right)"  
+    pcmd = (struct parenthesescmd*)cmd;
+    runcmd(pcmd->right);        
+    runcmd(pcmd->left);
     break;
   }   
   _exit(0);
