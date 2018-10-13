@@ -65,7 +65,7 @@ runcmd(struct cmd *cmd)
     break;
   case ';':
     scmd = (struct semicoloncmd*)cmd;
-    if(fork() == 0) 
+    if(fork() == 0) {
         runcmd(scmd->left);
     wait(NULL);
     runcmd(scmd->right);
@@ -181,10 +181,10 @@ gettoken(char **ps, char *es, char **q, char **eq)
   case 0:
     break;
   case ';':
-  case '<':
+  case '(':
     s++;
     break;
-  case '>':
+  case ')':
     s++;
     break;
   default:
@@ -255,6 +255,10 @@ parseline(char **ps, char *es)
   if(peek(ps, es, ";")){
     gettoken(ps, es, 0, 0);
     cmd = semicoloncmd(cmd, parseline(ps, es));
+  }
+  if(peek(ps, es, "(")) {
+    gettoken(ps, es, 0, 0);
+    cmd = semicoloncmd(parseline(ps, es), cmd);
   }
   return cmd;
 }
