@@ -31,7 +31,7 @@ struct redircmd {
   int fd;            // the file descriptor number to use for the file
 };
 
-struct pipecmd {
+struct semicoloncmd {
   int type;          // |
   struct cmd *left;  // left side of pipe
   struct cmd *right; // right side of pipe
@@ -40,16 +40,13 @@ struct pipecmd {
 int fork1(void);  // Fork but exits on failure.
 struct cmd *parsecmd(char*);
 
-void multiExecution(char * buf, int s);
-char *changeOrder(char *s);
-
 // Execute cmd.  Never returns.
 void
 runcmd(struct cmd *cmd)
 {
   int p[2], r;
   struct execcmd *ecmd;
-  struct pipecmd *pcmd;
+  struct semicoloncmd *scmd;
   struct redircmd *rcmd;
 
   if(cmd == 0)
@@ -64,27 +61,18 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       _exit(0);
-    //fprintf(stderr, "exec not implemented\n");
-    // Your code here ...
-	execvp(ecmd->argv[0], ecmd->argv);
+ 	execvp(ecmd->argv[0], ecmd->argv);
     break;
-
-  case '>':
-  case '<':
-    rcmd = (struct redircmd*)cmd;
-    fprintf(stderr, "redir not implemented\n");
-    // Your code here ...
-    runcmd(rcmd->cmd);
+  case ';':
+    scmd = (struct semicoloncmd*)cmd;
+    if(fork() == 0) 
+        runcmd(scmd->left);
+    wait(NULL);
+    runcmd(scmd->right);
     break;
-
-  case '|':
-    pcmd = (struct pipecmd*)cmd;
-    fprintf(stderr, "pipe not implemented\n");
-    // Your code here ...
-    break;
-	
-	
-  }    
+  }   
+  case '':
+    
   _exit(0);
 }
 
@@ -92,7 +80,7 @@ int
 getcmd(char *buf, int nbuf)
 {
   if (isatty(fileno(stdin)))
-    fprintf(stdout, "CS450$ ");
+    fprintf(stdout, "6.828$ ");
   memset(buf, 0, nbuf);
   if(fgets(buf, nbuf, stdin) == 0)
     return -1; // EOF
@@ -115,81 +103,12 @@ main(void)
         fprintf(stderr, "cannot cd %s\n", buf+3);
       continue;
     }
-    multiExecution(changeOrder(buf), r);
-    memset(buf, 0, sizeof(buf));
+    if(fork1() == 0)
+      runcmd(parsecmd(buf));
+    wait(&r);
   }
   exit(0);
 }
-
-
-//Remove '(' and ')' and reorder commands.
-char *changeOrder(char *s)
-{
-	static char container[200];
-	int len = strlen(s);
-	//for string s
-	unsigned int i = 0;
-	//for container
-	unsigned int j = 0;
-	while (i <= len)
-	{
-		if (s[i] != '('){ i++; }
-		else
-		{
-			i++;
-			while (s[i] != ')')
-			{
-				container[j++] = s[i++];
-			}
-		}
-	}
-
-
-	i = 0;
-	while (i < len)
-	{
-		if (s[i] != '(')
-			container[j++] = s[i++];
-		else
-		{
-			while (s[i] != ')')
-				i++;
-			i++;
-		}
-	}
-
-	return container;
-}
-
-
-
-
-void multiExecution(char * buf, int s)
-{
-	int r = s;
-	char temp[100];
-	memset(temp, 0 ,sizeof(temp));
-	int num = 0;
-	for(int i = 0; i < strlen(buf); i++)
-	{
-		if(*(buf + i ) != ';')  temp[num++] = *(buf + i);
-		else
-		{
-			if(fork1() == 0)
-			{
-				runcmd(parsecmd(temp));
-				printf("\n");
-			}
-				
-
-			wait(&r);
-			num = 0;
-			memset(temp, 0, sizeof(temp));
-		}
-	}
-}
-
-
 
 int
 fork1(void)
@@ -229,13 +148,13 @@ redircmd(struct cmd *subcmd, char *file, int type)
 }
 
 struct cmd*
-pipecmd(struct cmd *left, struct cmd *right)
+semicoloncmd(struct cmd *left, struct cmd *right)
 {
-  struct pipecmd *cmd;
+  struct semicoloncmd *cmd;
 
   cmd = malloc(sizeof(*cmd));
   memset(cmd, 0, sizeof(*cmd));
-  cmd->type = '|';
+  cmd->type = ';';
   cmd->left = left;
   cmd->right = right;
   return (struct cmd*)cmd;
@@ -261,7 +180,7 @@ gettoken(char **ps, char *es, char **q, char **eq)
   switch(*s){
   case 0:
     break;
-  case '|':
+  case ';':
   case '<':
     s++;
     break;
@@ -342,9 +261,9 @@ parsepipe(char **ps, char *es)
   struct cmd *cmd;
 
   cmd = parseexec(ps, es);
-  if(peek(ps, es, "|")){
+  if(peek(ps, es, ";")){
     gettoken(ps, es, 0, 0);
-    cmd = pipecmd(cmd, parsepipe(ps, es));
+    cmd = semicoloncmd(cmd, parsepipe(ps, es));
   }
   return cmd;
 }
@@ -386,7 +305,7 @@ parseexec(char **ps, char *es)
 
   argc = 0;
   ret = parseredirs(ret, ps, es);
-  while(!peek(ps, es, "|")){
+  while(!peek(ps, es, ";")){
     if((tok=gettoken(ps, es, &q, &eq)) == 0)
       break;
     if(tok != 'a') {
