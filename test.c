@@ -32,7 +32,7 @@ struct redircmd {
 };
 
 struct semicoloncmd {
-  int type;          // |
+  int type;          // ;
   struct cmd *left;  // left side of pipe
   struct cmd *right; // right side of pipe
 };
@@ -61,13 +61,13 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       _exit(0);
-    if(fork() == 0) 
-        execvp(ecmd->argv[0], ecmd->argv);
-    wait(NULL);
+ 	execvp(ecmd->argv[0], ecmd->argv);
     break;
   case ';':
     scmd = (struct semicoloncmd*)cmd;
-    runcmd(scmd->left);
+    if(fork() == 0) 
+        runcmd(scmd->left);
+    wait(NULL);
     runcmd(scmd->right);
     break;
   case '(':
@@ -251,7 +251,11 @@ struct cmd*
 parseline(char **ps, char *es)
 {
   struct cmd *cmd;
-  cmd = parsesemicolon(ps, es);
+  cmd = parseexec(ps, es);
+  if(peek(ps, es, ";")){
+    gettoken(ps, es, 0, 0);
+    cmd = semicoloncmd(cmd, parseline(ps, es));
+  }
   return cmd;
 }
 
@@ -265,6 +269,10 @@ parsesemicolon(char **ps, char *es)
     gettoken(ps, es, 0, 0);
     cmd = semicoloncmd(cmd, parsesemicolon(ps, es));
   }
+//  if(peek(ps, es, "(")){
+//    gettoken(ps, es, 0, 0);
+//    cmd = semicoloncmd(cmd, parsesemicolon(ps, es));
+//  }
   return cmd;
 }
 
