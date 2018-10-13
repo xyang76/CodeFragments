@@ -70,9 +70,9 @@ runcmd(struct cmd *cmd)
     wait(NULL);
     runcmd(scmd->right);
     break;
-  }   
   case '(':
     break;
+  }   
   _exit(0);
 }
 
