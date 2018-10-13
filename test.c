@@ -252,13 +252,9 @@ parseline(char **ps, char *es)
 {
   struct cmd *cmd;
   cmd = parseexec(ps, es);
-  if(peek(ps, es, ";")){
+  if(peek(ps, es, ";")) {
     gettoken(ps, es, 0, 0);
     cmd = semicoloncmd(cmd, parseline(ps, es));
-  }
-  if(peek(ps, es, "(")) {
-    gettoken(ps, es, 0, 0);
-    cmd = semicoloncmd(parseline(ps, es), cmd);
   }
   return cmd;
 }
