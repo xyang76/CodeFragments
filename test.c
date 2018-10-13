@@ -61,13 +61,13 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       _exit(0);
- 	execvp(ecmd->argv[0], ecmd->argv);
+    if(fork() == 0) 
+        execvp(ecmd->argv[0], ecmd->argv);
+    wait(NULL);
     break;
   case ';':
     scmd = (struct semicoloncmd*)cmd;
-    if(fork() == 0) 
-        runcmd(scmd->left);
-    wait(NULL);
+    runcmd(scmd->left);
     runcmd(scmd->right);
     break;
   case '(':
@@ -215,7 +215,7 @@ peek(char **ps, char *es, char *toks)
 }
 
 struct cmd *parseline(char**, char*);
-struct cmd *parsepipe(char**, char*);
+struct cmd *parsesemicolon(char**, char*);
 struct cmd *parseexec(char**, char*);
 
 // make a copy of the characters in the input buffer, starting from s through es.
@@ -251,19 +251,19 @@ struct cmd*
 parseline(char **ps, char *es)
 {
   struct cmd *cmd;
-  cmd = parsepipe(ps, es);
+  cmd = parsesemicolon(ps, es);
   return cmd;
 }
 
 struct cmd*
-parsepipe(char **ps, char *es)
+parsesemicolon(char **ps, char *es)
 {
   struct cmd *cmd;
 
   cmd = parseexec(ps, es);
   if(peek(ps, es, ";")){
     gettoken(ps, es, 0, 0);
-    cmd = semicoloncmd(cmd, parsepipe(ps, es));
+    cmd = semicoloncmd(cmd, parsesemicolon(ps, es));
   }
   return cmd;
 }
